@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- 飘落自定义属性 -->
+    <declare-styleable name="FallingLayout">
+        <!-- 飘落物初始X坐标 -->
+        <attr name="initX" format="dimension" />
+        <!-- 飘落无初始Y坐标-->
+        <attr name="initY" format="dimension" />
+        <!-- 飘落时 X 坐标随机范围 -->
+        <attr name="xRand" format="dimension" />
+        <!-- 飘落位移距离随机范围-->
+        <attr name="animLengthRand" format="dimension" />
+        <!-- X 坐标的弧度-->
+        <attr name="xPointFactor" format="dimension" />
+        <!-- 飘落位移距离-->
+        <attr name="animLength" format="dimension" />
+        <!-- 飘落物的宽度 -->
+        <attr name="rain_width" format="dimension" />
+        <!-- 飘落物的高度 -->
+        <attr name="rain_height" format="dimension" />
+        <!-- 贝塞尔因子 弧度 -->
+        <attr name="bezierFactor" format="integer" />
+        <!-- 动画时长 -->
+        <attr name="anim_duration" format="integer" />
+    </declare-styleable>
+
+</resources>

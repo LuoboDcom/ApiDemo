@@ -1,5 +1,8 @@
 package com.ys.yoosir.animationsample.weights;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Camera;
@@ -42,6 +45,7 @@ public class Roll3dView extends View {
     // 中心点 x方向旋转轴，Y方向旋转轴
     private float mAxisX = 0;
     private float mAxisY = 0;
+    private boolean isRolling; //是否正在执行动画
 
     //3D 滚动模式
     public enum RollMode {
@@ -67,6 +71,16 @@ public class Roll3dView extends View {
         mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mCamera = new Camera();
         mMatrix = new Matrix();
+    }
+
+    /**
+     *  添加图片
+     * @param bitmap
+     */
+    public void addImageBitmap(Bitmap bitmap){
+        mBitmapList.add(bitmap);
+        initBitmaps();
+        invalidate();
     }
 
     /**
@@ -110,6 +124,114 @@ public class Roll3dView extends View {
         }
         invalidate();
     }
+
+    ValueAnimator valueAnimator;
+    int rollDuration = 1 * 1000;
+    public void toNext(){
+        if(isRolling)
+            return;
+
+        if(rollMode == RollMode.RollInTurn){
+            valueAnimator = ValueAnimator.ofFloat(0,90 + (mPartNumber - 1) * 30);
+        }else if(rollMode == RollMode.Jalousie){
+            valueAnimator = ValueAnimator.ofFloat(0,180);
+        }else{
+            valueAnimator = ValueAnimator.ofFloat(0,90);
+        }
+        isRolling = true;
+        //动画时长
+        valueAnimator.setDuration(rollDuration);
+        //动画过程监听
+        valueAnimator.addUpdateListener(mUpdateListener);
+        //动画结束，执行下一个动画
+        valueAnimator.addListener(mToNextAnimListener);
+        valueAnimator.start();
+    }
+
+    /**
+     *  执行从 next 到 curr 的翻转过程
+     */
+    public void toPre(){
+        if(isRolling)
+            return;
+        int startRotate = 0;
+        if(rollMode == RollMode.RollInTurn){
+            startRotate = 90 + (mPartNumber - 1) * 30;
+        }else if(rollMode == RollMode.Jalousie){
+            startRotate = 180;
+        }else{
+            startRotate = 90;
+        }
+
+        //rotateDegree = 0 说明 curr 在当前显示
+        //设置角度为90或者180 nextIndex和currIndex preIndex轮转互换，使next显示到当前的图片，然后完成翻转
+        //可以通俗的理解为 先倒过来，再翻过去
+        //只不过倒过来之前把图片也互换了，所以看不出来而已
+        rollIndex(true);
+        setRotateDegree(startRotate);
+
+        isRolling = true;
+        valueAnimator = ValueAnimator.ofFloat(startRotate,0);
+        valueAnimator.setDuration(rollDuration);
+        valueAnimator.addUpdateListener(mUpdateListener);
+        valueAnimator.addListener(mToPreAnimListener);
+        valueAnimator.start();
+    }
+
+    private void rollIndex(boolean toPre) {
+        int temp;
+        if(toPre){
+            temp = currIndex;
+            currIndex = preIndex;
+            preIndex = nextIndex;
+            nextIndex = temp;
+        }else{
+            temp = currIndex;
+            currIndex = nextIndex;
+            nextIndex = preIndex;
+            preIndex = temp;
+        }
+    }
+
+    private ValueAnimator.AnimatorUpdateListener mUpdateListener = new ValueAnimator.AnimatorUpdateListener() {
+        @Override
+        public void onAnimationUpdate(ValueAnimator valueAnimator) {
+            float value = (float) valueAnimator.getAnimatedValue();
+            setRotateDegree(value);
+        }
+    };
+
+    private AnimatorListenerAdapter mToNextAnimListener = new AnimatorListenerAdapter() {
+        @Override
+        public void onAnimationEnd(Animator animation) {
+            super.onAnimationEnd(animation);
+            currIndex++;
+            if(currIndex > mBitmapList.size() - 1)
+                currIndex = 0;
+            initIndex();
+            //更新Index 旋转角度归0
+            setRotateDegree(0);
+            isRolling = false;
+        }
+    };
+
+    private AnimatorListenerAdapter mToPreAnimListener = new AnimatorListenerAdapter() {
+        @Override
+        public void onAnimationEnd(Animator animation) {
+            super.onAnimationEnd(animation);
+            //index位置恢复
+            rollIndex(false);
+            currIndex--;
+            if(currIndex < 0)
+                currIndex = mBitmapList.size() - 1;
+
+            initIndex();
+            isRolling = false;
+            invalidate();//index 位置修正之后刷新一下
+        }
+    };
+
+
 
     @Override
     protected void onFinishInflate() {
@@ -231,15 +353,29 @@ public class Roll3dView extends View {
                 drawRollWhole3D(canvas,true);
                 break;
             case Whole3D:
+                drawRollWhole3D(canvas,false);
                 break;
             case SepartConbine:
+                drawSepartConbine(canvas);
                 break;
             case RollInTurn:
+                drawRollInTurn(canvas);
                 break;
             case Jalousie:
+                drawJalousie(canvas);
                 break;
         }
     }
+
+    /**
+     *  在前面的matrix中我们讲到过，其实屏幕后方是一个三维坐标系，这个坐标系的y轴正方向是朝上的，
+     *  z轴是朝里面的，屏幕像一个窗口，我们看到的是窗口外面的物体投射到窗口上的二维镜像。
+     *  Camera实际上就像我们的眼睛，眼睛看到的是物体投射到窗口上的图形，
+     *  其实这里就有3个要素，一是物体，二是窗子，三是眼睛，也就是物体，屏幕和camera。
+     *  最终呈现在用户面前的是屏幕上的图形。影响物体投射到屏幕上的效果，
+     *  可以移动物体（前面讲解的matrix），也可以移动眼睛（看下面的setLocation方法解析，会有详细讲解）。
+     *  通过这些不同的操作，最终使得映射在屏幕上的图形不同，然后呈现给用户的也就不同了。
+     */
 
     /**
      *  整体翻转
@@ -257,6 +393,7 @@ public class Roll3dView extends View {
 
         if(orientation == 1){
             //纵向
+            //执行当前图片动画
             mCamera.save();
             if(draw2D){
                 //2D x轴翻转
@@ -267,15 +404,17 @@ public class Roll3dView extends View {
             mCamera.getMatrix(mMatrix);
             mCamera.restore();
 
-            mMatrix.preTranslate(-viewHeight/2,0);
+            mMatrix.preTranslate(-viewWidth/2,0);
             mMatrix.postTranslate(viewWidth/2,mAxisY);
             canvas.drawBitmap(currWholeBitmap,mMatrix,mPaint);
 
+            //执行下张图片动画
             mCamera.save();
-            if(draw2D)
+            if(draw2D) {
                 mCamera.rotateX(0);
-            else
+            }else {
                 mCamera.rotateX((90 - rotateDegree));
+            }
             mCamera.getMatrix(mMatrix);
             mCamera.restore();
 
@@ -284,10 +423,11 @@ public class Roll3dView extends View {
             canvas.drawBitmap(nextWholeBitmap,mMatrix,mPaint);
         }else{
             mCamera.save();
-            if(draw2D)
+            if(draw2D) {
                 mCamera.rotateY(0);
-            else
+            }else {
                 mCamera.rotateY(rotateDegree);
+            }
             mCamera.getMatrix(mMatrix);
             mCamera.restore();
 
@@ -309,5 +449,188 @@ public class Roll3dView extends View {
             canvas.drawBitmap(nextWholeBitmap,mMatrix,mPaint);
         }
         canvas.restore();
+    }
+
+    /**
+     *  纵向 头部接合 尾部分离效果
+     *
+     *  degree 0 -> 90 往下翻滚 或者往右翻滚 90 -> 0 往上翻滚 或者往左翻滚
+     *
+     * @param canvas
+     */
+    private void drawSepartConbine(Canvas canvas){
+        for (int i = 0; i < mPartNumber;i++){
+            Bitmap currBitmap = mBitmaps[currIndex][i];
+            Bitmap nextBitmap = mBitmaps[nextIndex][i];
+
+            canvas.save();
+            if(orientation == 1){//纵向 , 向下
+                mCamera.save();
+                mCamera.rotateX(-rotateDegree);
+                mCamera.getMatrix(mMatrix);
+                mCamera.restore();
+
+                mMatrix.preTranslate(-currBitmap.getWidth()/2,0);
+                mMatrix.postTranslate(currBitmap.getWidth()/2 + i * mAverWidth,mAxisY);
+                canvas.drawBitmap(currBitmap,mMatrix,mPaint);
+
+                mCamera.save();
+                mCamera.rotateX(90 - rotateDegree);
+                mCamera.getMatrix(mMatrix);
+                mCamera.restore();
+
+                mMatrix.preTranslate(-nextBitmap.getWidth()/2,-nextBitmap.getHeight());
+                mMatrix.postTranslate(nextBitmap.getWidth()/2 + i * mAverWidth,mAxisY);
+                canvas.drawBitmap(nextBitmap,mMatrix,mPaint);
+            }else{
+                mCamera.save();
+                mCamera.rotateY(rotateDegree);
+                mCamera.getMatrix(mMatrix);
+                mCamera.restore();
+
+                mMatrix.preTranslate(0,-currBitmap.getHeight()/2);
+                mMatrix.postTranslate(mAxisX,currBitmap.getHeight() / 2 + i * mAverHeight);
+                canvas.drawBitmap(currBitmap,mMatrix,mPaint);
+
+                mCamera.save();
+                mCamera.rotateY(rotateDegree - 90);
+                mCamera.getMatrix(mMatrix);
+                mCamera.restore();
+
+                mMatrix.preTranslate(-nextBitmap.getWidth(),-nextBitmap.getHeight()/2);
+                mMatrix.postTranslate(mAxisX,nextBitmap.getHeight() / 2 + i * mAverHeight);
+                canvas.drawBitmap(nextBitmap,mMatrix,mPaint);
+            }
+            canvas.restore();
+        }
+    }
+
+    /**
+     *  依次翻转
+     * @param canvas
+     */
+    private void drawRollInTurn(Canvas canvas) {
+        for (int i = 0; i < mPartNumber; i++){
+            Bitmap currBitmap = mBitmaps[currIndex][i];
+            Bitmap nextBitmap = mBitmaps[nextIndex][i];
+
+            //分段，每30度执行 一图片块的动画
+            float tDegree = rotateDegree - i * 30;
+            if(tDegree < 0)
+                tDegree = 0;
+            if(tDegree > 90)
+                tDegree = 90;
+
+            canvas.save();
+            if(orientation == 1){
+                //垂直方向，则绕 X轴旋转
+                //此图片块已旋转的角度，从而产生的 Y轴位移
+                float tAxisY = tDegree / 90f * viewHeight;
+                if(tAxisY > viewHeight)
+                    tAxisY = viewHeight;
+                if(tAxisY < 0)
+                    tAxisY = 0;
+
+                mCamera.save();
+                mCamera.rotateX(-tDegree);
+                mCamera.getMatrix(mMatrix);
+                mCamera.restore();
+
+                mMatrix.preTranslate(-currBitmap.getWidth(),0);
+                mMatrix.preTranslate(currBitmap.getWidth() + i * mAverWidth,tAxisY);
+                canvas.drawBitmap(currBitmap,mMatrix,mPaint);
+
+                mCamera.save();
+                mCamera.rotateX(90 - tDegree);
+                mCamera.getMatrix(mMatrix);
+                mCamera.restore();
+
+                mMatrix.preTranslate(-nextBitmap.getWidth(),-nextBitmap.getHeight());
+                mMatrix.postTranslate(nextBitmap.getWidth() + i * mAverWidth,tAxisY);
+                canvas.drawBitmap(nextBitmap,mMatrix,mPaint);
+            }else{
+                //此图片块已旋转的角度，从而产生的 X轴位移
+                float tAxisX = tDegree / 90f * viewWidth;
+                if(tAxisX > viewHeight)
+                    tAxisX = viewHeight;
+                if(tAxisX < 0)
+                    tAxisX = 0;
+
+                mCamera.save();
+                mCamera.rotateY(tDegree);
+                mCamera.getMatrix(mMatrix);
+                mCamera.restore();
+
+                mMatrix.preTranslate(0,-currBitmap.getHeight()/2);
+                mMatrix.preTranslate(tAxisX,currBitmap.getHeight()/2 + i * mAverHeight);
+                canvas.drawBitmap(currBitmap,mMatrix,mPaint);
+
+                mCamera.save();
+                mCamera.rotateX(tDegree - 90);
+                mCamera.getMatrix(mMatrix);
+                mCamera.restore();
+
+                mMatrix.preTranslate(-nextBitmap.getWidth(),-nextBitmap.getHeight()/2);
+                mMatrix.postTranslate(tAxisX,nextBitmap.getHeight() / 2 + i * mAverHeight);
+                canvas.drawBitmap(nextBitmap,mMatrix,mPaint);
+            }
+            canvas.restore();
+        }
+    }
+
+    /**
+     *  百叶窗翻页
+     * @param canvas
+     */
+    private void drawJalousie(Canvas canvas){
+        for(int i = 0; i < mPartNumber;i++){
+            Bitmap currBitmap = mBitmaps[currIndex][i];
+            Bitmap nextBitmap = mBitmaps[nextIndex][i];
+
+            canvas.save();
+            //注意，百叶窗的旋转方向和其他模式是相反的，横向的时候纵翻 纵向的时候横翻
+            if(orientation == 1){
+                if(rotateDegree < 90){
+                    mCamera.save();
+                    mCamera.rotateX(rotateDegree);
+                    mCamera.getMatrix(mMatrix);
+                    mCamera.restore();
+
+                    mMatrix.preTranslate(-currBitmap.getWidth() / 2,-currBitmap.getHeight() /2);
+                    mMatrix.postTranslate(currBitmap.getWidth() / 2,currBitmap.getHeight() / 2 + i * mAverHeight);
+                    canvas.drawBitmap(currBitmap,mMatrix,mPaint);
+                }else{
+                    mCamera.save();
+                    mCamera.rotateX(180 - rotateDegree);
+                    mCamera.getMatrix(mMatrix);
+                    mCamera.restore();
+
+                    mMatrix.preTranslate(-nextBitmap.getWidth() / 2, -nextBitmap.getHeight() / 2);
+                    mMatrix.postTranslate(nextBitmap.getWidth() / 2,nextBitmap.getHeight() / 2 + i * mAverHeight);
+                    canvas.drawBitmap(nextBitmap,mMatrix,mPaint);
+                }
+            }else{
+                if(rotateDegree < 90){
+                    mCamera.save();
+                    mCamera.rotateY(rotateDegree);
+                    mCamera.getMatrix(mMatrix);
+                    mCamera.restore();
+
+                    mMatrix.preTranslate(-currBitmap.getWidth() / 2 , -currBitmap.getHeight() / 2);
+                    mMatrix.postTranslate(currBitmap.getWidth() / 2 + i * mAverWidth,currBitmap.getHeight() / 2);
+                    canvas.drawBitmap(currBitmap,mMatrix,mPaint);
+                }else{
+                    mCamera.save();
+                    mCamera.rotateY(180 - rotateDegree);
+                    mCamera.getMatrix(mMatrix);
+                    mCamera.restore();
+
+                    mMatrix.preTranslate(-nextBitmap.getWidth() / 2,-nextBitmap.getHeight() / 2);
+                    mMatrix.postTranslate(nextBitmap.getWidth() / 2 + i * mAverWidth,nextBitmap.getHeight()/2);
+                    canvas.drawBitmap(nextBitmap,mMatrix,mPaint);
+                }
+            }
+            canvas.restore();
+        }
     }
 }

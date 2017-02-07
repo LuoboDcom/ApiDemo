@@ -2,4 +2,9 @@
     <!-- Default screen margins, per the Android Design guidelines. -->
     <dimen name="activity_horizontal_margin">16dp</dimen>
     <dimen name="activity_vertical_margin">16dp</dimen>
+
+    <!--飘落 -->
+    <dimen name="falling_anim_bezier_x_rand">50.0dp</dimen>
+    <dimen name="falling_anim_length_rand">350.0dp</dimen>
+    <dimen name="falling_anim_length">400.0dp</dimen>
 </resources>

@@ -10,17 +10,82 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="com.ys.yoosir.animationsample.MainActivity">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hello World!" />
+    <android.support.v4.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
 
-    <ImageView
-        android:id="@+id/ic_iv"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="60dp"
-        android:layout_marginLeft="60dp"
-        android:src="@mipmap/android_build_process" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
 
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Hello World!" />
+
+            <ImageView
+                android:id="@+id/ic_iv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@mipmap/android_build_process" />
+
+            <com.ys.yoosir.animationsample.weights.Roll3dView
+                android:id="@+id/roll_3d_view_1"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:layout_marginTop="10dp"
+                />
+
+            <Button
+                android:id="@+id/anim_btn_1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="整体3D动画"
+                />
+
+            <com.ys.yoosir.animationsample.weights.Roll3dView
+                android:id="@+id/roll_3d_view_2"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:layout_marginTop="10dp"
+                />
+
+            <Button
+                android:id="@+id/anim_btn_2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="开合动画"
+                />
+
+            <com.ys.yoosir.animationsample.weights.Roll3dView
+                android:id="@+id/roll_3d_view_3"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:layout_marginTop="10dp"
+                />
+
+            <Button
+                android:id="@+id/anim_btn_3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="逐渐翻滚"
+                />
+
+            <com.ys.yoosir.animationsample.weights.Roll3dView
+                android:id="@+id/roll_3d_view_4"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:layout_marginTop="10dp"
+                />
+
+            <Button
+                android:id="@+id/anim_btn_4"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="百叶窗"
+                />
+        </LinearLayout>
+
+    </android.support.v4.widget.NestedScrollView>
 </RelativeLayout>
